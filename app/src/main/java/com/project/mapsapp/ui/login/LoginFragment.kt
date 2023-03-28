@@ -4,16 +4,14 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.MutableLiveData
+import androidx.navigation.fragment.findNavController
+import com.project.mapsapp.R
 import com.project.mapsapp.databinding.FragmentLoginBinding
-
 
 class LoginFragment : Fragment() {
     lateinit var binding: FragmentLoginBinding
-    val validationCount : MutableLiveData<Int> = MutableLiveData()
 
     var savedEmail : String? = null
     var savedPassword : String? = null
@@ -49,21 +47,11 @@ class LoginFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.loginButton.isEnabled = false
-        validationCount.postValue(0)
-
-        observer()
 
         listeners()
 
         setData()
 
-    }
-
-    private fun observer() {
-        validationCount.observe(viewLifecycleOwner) {
-            Toast.makeText(requireContext(), "$it", Toast.LENGTH_SHORT).show()
-            binding.loginButton.isEnabled = (it == 2)
-        }
     }
 
     private fun setData() {
@@ -78,33 +66,41 @@ class LoginFragment : Fragment() {
 
     private fun listeners() {
         binding.loginEmail.doAfterTextChanged {
-            if(regexEmail.matches(it.toString())) {
-                binding.loginEmailLayout.isErrorEnabled = false
-                validationCount.postValue(validationCount.value?.plus(1))
-            } else {
-                validationCount.postValue(validationCount.value?.plus(1))
-                binding.loginEmailLayout.error = "Email is not valid"
-            }
+            binding.loginEmailLayout.isErrorEnabled = true
+            checkValidation()
         }
 
         binding.loginPassword.doAfterTextChanged {
-            if(regexPassword.matches(it.toString())) {
-                binding.loginPasswordLayout.isErrorEnabled = false
-                validationCount.postValue(validationCount.value?.plus(1))
-            } else {
-                binding.loginPasswordLayout.error = "Email is not valid"
-            }
+            binding.loginPasswordLayout.isErrorEnabled = true
+            checkValidation()
+        }
+
+        binding.loginButton.setOnClickListener {
+            findNavController().navigate(R.id.action_loginFragment_to_homeFragment)
         }
     }
 
     private fun checkValidation() {
         var matched = 0
+        val email = binding.loginEmail.text.toString()
+        val password = binding.loginPassword.text.toString()
 
-        if(regexPassword.matches(binding.loginPassword.text.toString())) {
+        if(regexEmail.matches(email)) {
+            matched++
+            binding.loginEmailLayout.isErrorEnabled = false
+        } else {
+            if(email.isNotBlank()) {
+                binding.loginEmailLayout.error = "Email is not valid"
+            }
+        }
+        if(regexPassword.matches(password)) {
             matched++
             binding.loginPasswordLayout.isErrorEnabled = false
         } else {
-            binding.loginPasswordLayout.error = "Password should contain one lowercase, one uppercase, numbers and letters"
+            if(password.isNotBlank()) {
+                binding.loginPasswordLayout.error =
+                    "Password should contain one lowercase, one uppercase, numbers and letters"
+            }
         }
         binding.loginButton.isEnabled = ( matched == 2 )
     }
