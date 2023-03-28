@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="border_margin">@dimen/_16sdp</dimen>
+    <dimen name="top_margin_medium">@dimen/_16sdp</dimen>
+    <dimen name="top_margin_large">@dimen/_24sdp</dimen>
+
+
+    <dimen name="text_12sp">@dimen/_12ssp</dimen>
+    <dimen name="text_16sp">@dimen/_16ssp</dimen>
+    <dimen name="text_18sp">@dimen/_18ssp</dimen>
+    <dimen name="text_24sp">@dimen/_24ssp</dimen>
+</resources>
