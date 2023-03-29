@@ -1,20 +1,24 @@
 package com.project.mapsapp.ui.map
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.AlertDialog
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
-import android.util.Log
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.widget.addTextChangedListener
-import androidx.core.widget.doOnTextChanged
 import androidx.fragment.app.Fragment
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -25,9 +29,8 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.libraries.places.api.Places
-import com.google.android.libraries.places.api.model.TypeFilter
-import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
 import com.google.android.libraries.places.api.net.PlacesClient
+import com.project.mapsapp.MainActivity
 import com.project.mapsapp.R
 import com.project.mapsapp.databinding.FragmentMapBinding
 import java.io.IOException
@@ -37,11 +40,23 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     private lateinit var binding: FragmentMapBinding
     private lateinit var map: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-//    private lateinit var searchAdapter: ArrayAdapter<String>
     private lateinit var placesClient: PlacesClient
 
-    companion object {
-        private const val LOCATION_PERMISSION_REQUEST_CODE = 1
+    private var locationPermissionGranted = false
+
+    var searchThreadAvailability = false
+    private val timeDelay = 1 // in seconds
+
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if(isGranted) {
+            locationPermissionGranted = true
+            getCurrentLocation()
+        } else {
+            locationPermissionGranted = false
+            permissionDeniedAlert()
+        }
     }
 
     override fun onCreateView(
@@ -58,24 +73,24 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         val mapFragment = childFragmentManager.findFragmentById(R.id.map_fragment) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
-        val apiKey = getString(R.string.maps_api_key)
-        Places.initialize(requireContext(), apiKey)
-        placesClient = Places.createClient(requireContext())
-
-//        adapters()
+        setUp()
 
         listeners()
     }
 
-//    private fun adapters() {
-//        searchAdapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line)
-//        binding.mapSearch.setAdapter(searchAdapter)
-//    }
+    private fun setUp() {
+        val apiKey = getString(R.string.maps_api_key)
+        Places.initialize(requireContext(), apiKey)
+        placesClient = Places.createClient(requireContext())
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireContext())
+    }
 
     private fun listeners() {
         binding.mapSearchButton.setOnClickListener {
-            val location = binding.mapSearch.text.toString()
-            searchLocation(location)
+            val location : String = binding.mapSearch.text.toString()
+            if(!location.isBlank()) {
+                searchLocation(location)
+            }
         }
 
         binding.mapClearMarker.setOnClickListener {
@@ -83,33 +98,17 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         }
 
         binding.mapLocateButton.setOnClickListener {
-            getCurrentLocation()
+            if(!searchThreadAvailability) {
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if(locationPermissionGranted) {
+                        getCurrentLocation()
+                    } else {
+                        permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                    }
+                    searchThreadAvailability = false
+                }, (timeDelay * 1000).toLong())
+            }
         }
-
-//        binding.mapSearch.addTextChangedListener {
-//            val TAG = "/@/"
-//
-//            if (it != null && it.length > 2) {
-//                val request = FindAutocompletePredictionsRequest.builder()
-//                    .setTypeFilter(TypeFilter.ADDRESS)
-//                    .setQuery(it.toString())
-//                    .build()
-//
-//                placesClient.findAutocompletePredictions(request).addOnSuccessListener { response ->
-//                    searchAdapter.clear()
-//                    response.autocompletePredictions.forEach {
-//                        searchAdapter.add(it.toString())
-//                    }
-//                    searchAdapter.notifyDataSetChanged()
-//                }.addOnFailureListener { exception ->
-//                    Log.e(TAG, "Autocomplete prediction request failed: $exception")
-//                    Toast.makeText(requireContext(), exception.toString(), Toast.LENGTH_SHORT).show()
-//                }
-//            } else {
-//                searchAdapter.clear()
-//                searchAdapter.notifyDataSetChanged()
-//            }
-//        }
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
@@ -119,28 +118,36 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         }
     }
 
-    @SuppressLint("MissingPermission")
     private fun getCurrentLocation() {
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
+        // Check if location permission is granted
         if (ContextCompat.checkSelfPermission(
                 requireContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
+            ) == PackageManager.PERMISSION_GRANTED
         ) {
-            ActivityCompat.requestPermissions(
-                requireActivity(),
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                LOCATION_PERMISSION_REQUEST_CODE
-            )
-        } else {
-            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                LatLng(location.latitude, location.longitude).let {
-                    map.animateCamera(
-                        CameraUpdateFactory.newLatLngZoom(it, 15f)
-                    )
-                    addMarker(it)
+            // Get last known location
+            fusedLocationClient.lastLocation
+                .addOnSuccessListener { location ->
+                    if (location != null) {
+                        // Use location
+                        val latLng = LatLng(location.latitude, location.longitude)
+                        // Do something with latLng, e.g. move camera to user's location
+                        map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
+                        addMarker(latLng)
+                    } else {
+                        // Location is null, handle accordingly
+                        Toast.makeText(requireContext(), "Location not available", Toast.LENGTH_SHORT)
+                            .show()
+                    }
                 }
-            }
+                .addOnFailureListener {
+                    // Failed to get location, handle accordingly
+                    Toast.makeText(requireContext(), "Failed to get location $it", Toast.LENGTH_SHORT)
+                        .show()
+                }
+        } else {
+            // Location permission not granted, request it
+            permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
     }
 
@@ -158,7 +165,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             addMarker(latLng)
             map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
         } else {
-            Toast.makeText(requireContext(), "Location not found", Toast.LENGTH_SHORT).show()
+            permissionDeniedAlert()
         }
     }
 
@@ -172,5 +179,23 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                 .title("lat:${latLng.latitude}, long:${latLng.longitude}")
                 .snippet(addressText ?: "Unknown")
         )
+    }
+
+    private fun permissionDeniedAlert() {
+        val builder: AlertDialog.Builder = AlertDialog.Builder(context)
+        builder.setMessage("You have to provide us Location permission to use this feature" )
+        builder.setCancelable(true)
+        builder.setPositiveButton("Agree") { dialog, id ->
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            val uri = Uri.fromParts("package", requireContext().packageName, null)
+            intent.data = uri
+            startActivity(intent)
+            dialog.cancel()
+        }
+        builder.setNegativeButton("No") { dialog, id ->
+            dialog.cancel()
+        }
+        val alert: AlertDialog = builder.create()
+        alert.show()
     }
 }
