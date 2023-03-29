@@ -10,7 +10,7 @@ class MapsViewModel: ViewModel() {
 
     fun getMapInstance() = mapInstance
 
-    fun setMapInstance(map :GoogleMap) {
+    fun saveMapInstance(map :GoogleMap) {
         mapInstance = map
     }
 
@@ -18,7 +18,7 @@ class MapsViewModel: ViewModel() {
 
     fun getMapMarkers() = mapMarkers
 
-    fun setMapMarkers(markers :ArrayList<LatLng>) {
+    fun saveMapMarkers(markers :ArrayList<LatLng>) {
         mapMarkers.clear()
         mapMarkers.addAll(markers)
     }

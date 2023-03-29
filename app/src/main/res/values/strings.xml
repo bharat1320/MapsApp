@@ -5,5 +5,15 @@
     <string name="text1">Login</string>
     <string name="email">Email</string>
     <string name="password">Password</string>
+
     <string name="search_location">Search location</string>
+    <string name="failed_location">Failed to get location</string>
+    <string name="failed_location_search">Cannot find requested Location</string>
+    <string name="connected_dialog">Connected to the internet</string>
+    <string name="request_location">To use this feature, you need to provide location permission. Would you like to give us location Permission?</string>
+    <string name="request_internet">To access the updated map, an internet connection is required. Would you like to connect using mobile data or Wi-Fi?</string>
+    <string name="request_gps">To access this feature, please enable GPS</string>
+    <string name="wifi">Wifi</string>
+    <string name="mobile_data">Mobile Data</string>
+    <string name="grant">Grant</string>
 </resources>

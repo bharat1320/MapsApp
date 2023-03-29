@@ -2,7 +2,7 @@
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/mapFragment">
+    app:startDestination="@id/loginFragment">
 
     <fragment
         android:id="@+id/loginFragment"
@@ -15,5 +15,9 @@
     <fragment
         android:id="@+id/mapFragment"
         android:name="com.project.mapsapp.ui.map.MapFragment"
-        android:label="MapFragment" />
+        android:label="MapFragment" >
+        <argument
+            android:name="email"
+            app:argType="string" />
+    </fragment>
 </navigation>

@@ -1,24 +1,32 @@
 package com.project.mapsapp.ui.map
+
 import android.Manifest
 import android.app.AlertDialog
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.activityViewModels
+import androidx.fragment.app.viewModels
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -33,16 +41,22 @@ import com.project.mapsapp.R
 import com.project.mapsapp.databinding.FragmentMapBinding
 import com.project.mapsapp.ui.login.LoginFragment
 import com.project.mapsapp.ui.map.viewModel.MapsViewModel
+import com.project.mapsapp.ui.util.NetworkCallBackImpl
+import com.project.mapsapp.ui.util.customExtensionDialog
 import java.io.IOException
 import java.util.*
 import kotlin.collections.ArrayList
 
 class MapFragment : Fragment(), OnMapReadyCallback {
     private lateinit var binding: FragmentMapBinding
-    val mapsViewModel: MapsViewModel by activityViewModels()
+    val mapsViewModel: MapsViewModel by viewModels()
+    private lateinit var connectivityManager: ConnectivityManager
+    private lateinit var networkCallback: NetworkCallBackImpl
     private lateinit var map: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var placesClient: PlacesClient
+    private lateinit var dialog: AlertDialog.Builder
+    private var TAG = "MapFragment"
 
 //    To tackle multiple clicks
     var searchThreadAvailability = false
@@ -52,7 +66,8 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     private var markerHistory: ArrayList<LatLng> = arrayListOf()
 
     companion object {
-        val KEY_INSTANCE_SAVED = "instance_saved"
+        val KEY_INSTANCE_SAVED = "KEY_INSTANCE_SAVED"
+        val KEY_EMAIL = "KEY_EMAIL"
     }
 
     private lateinit var permissionLauncher : ActivityResultLauncher<String>
@@ -65,7 +80,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             if(isGranted) {
                 getCurrentLocation()
             } else {
-                permissionDeniedAlert()
+                locationPermissionDeniedAlert()
             }
         }
     }
@@ -82,10 +97,35 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        dialog = AlertDialog.Builder(context)
+
         val mapFragment = childFragmentManager.findFragmentById(R.id.map_fragment) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
-        Toast.makeText(requireContext(), arguments?.getString(LoginFragment.KEY_EMAIL,"")?:"", Toast.LENGTH_SHORT).show()
+        setUp()
+
+        registerNetworkListener()
+    }
+
+    private fun registerNetworkListener() {
+        if(!isNetworkConnected(requireContext())) {
+            binding.mapNoInternetButton.visibility = View.VISIBLE
+            offlineAlert()
+        } else {
+            binding.mapNoInternetButton.visibility = View.GONE
+        }
+
+        connectivityManager = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        networkCallback = NetworkCallBackImpl(
+            {
+                Toast.makeText(requireContext(), resources.getString(R.string.connected_dialog), Toast.LENGTH_LONG).show()
+                binding.mapNoInternetButton.visibility = View.GONE
+            },
+            {
+                offlineAlert()
+                binding.mapNoInternetButton.visibility = View.VISIBLE
+            }
+        )
     }
 
     override fun onViewStateRestored(savedInstanceState: Bundle?) {
@@ -95,7 +135,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             if(savedInstanceState.getBoolean(KEY_INSTANCE_SAVED)) {
                 map = mapsViewModel.getMapInstance()!!
 
-                setUp()
+                binding.mapTitle.text = savedInstanceState.getString(KEY_EMAIL)
 
                 listeners()
 
@@ -110,8 +150,6 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     override fun onMapReady(googleMap: GoogleMap) {
         map = googleMap
 
-        setUp()
-
         listeners()
     }
 
@@ -120,6 +158,8 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         Places.initialize(requireContext(), apiKey)
         placesClient = Places.createClient(requireContext())
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireContext())
+
+        binding.mapTitle.text = arguments?.getString(LoginFragment.KEY_EMAIL,"")
     }
 
     private fun listeners() {
@@ -148,6 +188,17 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             }
         }
 
+        binding.mapNoInternetButton.setOnClickListener {
+            offlineAlert()
+        }
+
+    }
+
+    fun isNetworkConnected(context: Context): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val networkCapabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     private fun getCurrentLocation() {
@@ -162,12 +213,12 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                         map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
                         addMarker(latLng)
                     } else {
-                        Toast.makeText(requireContext(), "Location not available", Toast.LENGTH_SHORT).show()
+                        gpsOffAlert()
                     }
                     map.isMyLocationEnabled = true
                 }
                 .addOnFailureListener {
-                    Toast.makeText(requireContext(), "Failed to get location $it", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), resources.getString(R.string.failed_location) + it, Toast.LENGTH_SHORT).show()
                 }
         } else {
             permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -188,27 +239,44 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             addMarker(latLng)
             map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
         } else {
-            Toast.makeText(requireContext(), "Cant find requested Location", Toast.LENGTH_SHORT)
+            Toast.makeText(requireContext(), resources.getString(R.string.failed_location_search), Toast.LENGTH_SHORT)
                 .show()
         }
     }
 
-    private fun permissionDeniedAlert() {
-        val builder: AlertDialog.Builder = AlertDialog.Builder(context)
-        builder.setMessage("You have to provide us Location permission to use this feature" )
-        builder.setCancelable(true)
-        builder.setPositiveButton("Agree") { dialog, id ->
+    private fun locationPermissionDeniedAlert() {
+        dialog.customExtensionDialog(resources.getString(R.string.request_location), acceptBlock = {
             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
             val uri = Uri.fromParts("package", requireContext().packageName, null)
             intent.data = uri
             startActivity(intent)
-            dialog.cancel()
-        }
-        builder.setNegativeButton("No") { dialog, id ->
-            dialog.cancel()
-        }
-        val alert: AlertDialog = builder.create()
-        alert.show()
+        })
+    }
+
+    private fun gpsOffAlert() {
+        dialog.customExtensionDialog(resources.getString(R.string.request_gps), acceptBlock =  {
+            val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+            startActivity(intent)
+        })
+    }
+
+    private fun offlineAlert() {
+        dialog.customExtensionDialog(resources.getString(R.string.request_internet),
+            resources.getString(R.string.wifi),
+            resources.getString(R.string.mobile_data),{
+//                For wifi
+                val intent = Intent(Settings.ACTION_WIFI_SETTINGS)
+                startActivity(intent)
+            },{
+//                For mobile data
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    val intent = Intent(Settings.ACTION_DATA_USAGE_SETTINGS)
+                    startActivity(intent)
+                } else {
+                    val intent = Intent(Settings.ACTION_DATA_ROAMING_SETTINGS)
+                    startActivity(intent)
+                }
+            })
     }
 
     private fun addMarker(latLng: LatLng) {
@@ -217,21 +285,44 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun addMarkerWithoutHistory(latLng: LatLng) {
-        val geocoder = Geocoder(requireContext(), Locale.getDefault())
-        val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1) ?: arrayListOf()
-        val addressText = addresses[0]?.getAddressLine(0) ?: ""
-        map.addMarker(
-            MarkerOptions()
-                .position(latLng)
-                .title("lat:${latLng.latitude}, long:${latLng.longitude}")
-                .snippet(addressText)
-        )
+        try {
+            val geocoder = Geocoder(requireContext(), Locale.getDefault())
+            val addresses =
+                geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1) ?: arrayListOf()
+            val addressText = addresses[0]?.getAddressLine(0) ?: ""
+            map.addMarker(
+                MarkerOptions()
+                    .position(latLng)
+                    .title("lat:${latLng.latitude}, long:${latLng.longitude}")
+                    .snippet(addressText)
+            )
+        } catch (e :Exception) {
+            Log.e("${TAG}/Marker_Exception", e.toString())
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(KEY_INSTANCE_SAVED,true)
-        mapsViewModel.setMapInstance(map)
-        mapsViewModel.setMapMarkers(markerHistory)
+        outState.putString(KEY_EMAIL,binding.mapTitle.text.toString())
+        mapsViewModel.saveMapInstance(map)
+        mapsViewModel.saveMapMarkers(markerHistory)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            connectivityManager.registerDefaultNetworkCallback(networkCallback)
+        } else {
+            val builder = NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
+            connectivityManager.registerNetworkCallback(builder.build(), networkCallback)
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        connectivityManager.unregisterNetworkCallback(networkCallback)
     }
 }

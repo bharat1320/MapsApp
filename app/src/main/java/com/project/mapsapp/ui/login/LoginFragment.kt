@@ -19,8 +19,8 @@ class LoginFragment : Fragment() {
     var latestPassword : String = ""
 
     companion object {
-        val KEY_EMAIL = "email"
-        val KEY_PASSWORD = "password"
+        val KEY_EMAIL = "KEY_EMAIL"
+        val KEY_PASSWORD = "KEY_PASSWORD"
 
         val regexPassword = Regex("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).+$")
         val regexEmail = Regex("^([a-zA-Z0-9_\\-\\.]+)@([a-zA-Z0-9\\-\\.]+)\\.([a-zA-Z]{2,5})$")
