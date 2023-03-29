@@ -1,13 +1,11 @@
 package com.project.mapsapp.ui.map
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -16,10 +14,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -30,32 +29,44 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.net.PlacesClient
-import com.project.mapsapp.MainActivity
 import com.project.mapsapp.R
 import com.project.mapsapp.databinding.FragmentMapBinding
+import com.project.mapsapp.ui.login.LoginFragment
+import com.project.mapsapp.ui.map.viewModel.MapsViewModel
 import java.io.IOException
 import java.util.*
+import kotlin.collections.ArrayList
 
 class MapFragment : Fragment(), OnMapReadyCallback {
     private lateinit var binding: FragmentMapBinding
+    val mapsViewModel: MapsViewModel by activityViewModels()
     private lateinit var map: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var placesClient: PlacesClient
 
-    private var locationPermissionGranted = false
-
+//    To tackle multiple clicks
     var searchThreadAvailability = false
-    private val timeDelay = 1 // in seconds
+    private val timeDelay = 2 // in seconds
 
-    private val permissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if(isGranted) {
-            locationPermissionGranted = true
-            getCurrentLocation()
-        } else {
-            locationPermissionGranted = false
-            permissionDeniedAlert()
+//    All the even positions have latitude and odd positions have longitude
+    private var markerHistory: ArrayList<LatLng> = arrayListOf()
+
+    companion object {
+        val KEY_INSTANCE_SAVED = "instance_saved"
+    }
+
+    private lateinit var permissionLauncher : ActivityResultLauncher<String>
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        permissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { isGranted ->
+            if(isGranted) {
+                getCurrentLocation()
+            } else {
+                permissionDeniedAlert()
+            }
         }
     }
 
@@ -70,8 +81,34 @@ class MapFragment : Fragment(), OnMapReadyCallback {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
         val mapFragment = childFragmentManager.findFragmentById(R.id.map_fragment) as SupportMapFragment
         mapFragment.getMapAsync(this)
+
+        Toast.makeText(requireContext(), arguments?.getString(LoginFragment.KEY_EMAIL,"")?:"", Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onViewStateRestored(savedInstanceState: Bundle?) {
+        super.onViewStateRestored(savedInstanceState)
+
+        if(savedInstanceState != null) {
+            if(savedInstanceState.getBoolean(KEY_INSTANCE_SAVED)) {
+                map = mapsViewModel.getMapInstance()!!
+
+                setUp()
+
+                listeners()
+
+                markerHistory.addAll(mapsViewModel.getMapMarkers())
+                markerHistory.forEach {
+                    addMarkerWithoutHistory(it)
+                }
+            }
+        }
+    }
+
+    override fun onMapReady(googleMap: GoogleMap) {
+        map = googleMap
 
         setUp()
 
@@ -86,10 +123,15 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun listeners() {
+
+        map.setOnMapClickListener { point ->
+            addMarker(point)
+        }
+
         binding.mapSearchButton.setOnClickListener {
             val location : String = binding.mapSearch.text.toString()
             if(!location.isBlank()) {
-                searchLocation(location)
+                searchLocationByName(location)
             }
         }
 
@@ -100,58 +142,39 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         binding.mapLocateButton.setOnClickListener {
             if(!searchThreadAvailability) {
                 Handler(Looper.getMainLooper()).postDelayed({
-                    if(locationPermissionGranted) {
-                        getCurrentLocation()
-                    } else {
-                        permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-                    }
+                    permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
                     searchThreadAvailability = false
                 }, (timeDelay * 1000).toLong())
             }
         }
-    }
 
-    override fun onMapReady(googleMap: GoogleMap) {
-        map = googleMap
-        map.setOnMapClickListener { point ->
-            addMarker(point)
-        }
     }
 
     private fun getCurrentLocation() {
-        // Check if location permission is granted
         if (ContextCompat.checkSelfPermission(
                 requireContext(),
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            // Get last known location
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+        {
             fusedLocationClient.lastLocation
                 .addOnSuccessListener { location ->
                     if (location != null) {
-                        // Use location
                         val latLng = LatLng(location.latitude, location.longitude)
-                        // Do something with latLng, e.g. move camera to user's location
                         map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
                         addMarker(latLng)
                     } else {
-                        // Location is null, handle accordingly
-                        Toast.makeText(requireContext(), "Location not available", Toast.LENGTH_SHORT)
-                            .show()
+                        Toast.makeText(requireContext(), "Location not available", Toast.LENGTH_SHORT).show()
                     }
+                    map.isMyLocationEnabled = true
                 }
                 .addOnFailureListener {
-                    // Failed to get location, handle accordingly
-                    Toast.makeText(requireContext(), "Failed to get location $it", Toast.LENGTH_SHORT)
-                        .show()
+                    Toast.makeText(requireContext(), "Failed to get location $it", Toast.LENGTH_SHORT).show()
                 }
         } else {
-            // Location permission not granted, request it
             permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
     }
 
-    private fun searchLocation(location: String) {
+    private fun searchLocationByName(location: String) {
         val geocoder = Geocoder(requireContext())
         var addressList: List<Address>? = null
         try {
@@ -165,20 +188,9 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             addMarker(latLng)
             map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
         } else {
-            permissionDeniedAlert()
+            Toast.makeText(requireContext(), "Cant find requested Location", Toast.LENGTH_SHORT)
+                .show()
         }
-    }
-
-    private fun addMarker(latLng: LatLng) {
-        val geocoder = Geocoder(requireContext(), Locale.getDefault())
-        val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
-        val addressText = addresses?.get(0)?.getAddressLine(0)
-        map.addMarker(
-            MarkerOptions()
-                .position(latLng)
-                .title("lat:${latLng.latitude}, long:${latLng.longitude}")
-                .snippet(addressText ?: "Unknown")
-        )
     }
 
     private fun permissionDeniedAlert() {
@@ -197,5 +209,29 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         }
         val alert: AlertDialog = builder.create()
         alert.show()
+    }
+
+    private fun addMarker(latLng: LatLng) {
+        markerHistory.add(latLng)
+        addMarkerWithoutHistory(latLng)
+    }
+
+    private fun addMarkerWithoutHistory(latLng: LatLng) {
+        val geocoder = Geocoder(requireContext(), Locale.getDefault())
+        val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1) ?: arrayListOf()
+        val addressText = addresses[0]?.getAddressLine(0) ?: ""
+        map.addMarker(
+            MarkerOptions()
+                .position(latLng)
+                .title("lat:${latLng.latitude}, long:${latLng.longitude}")
+                .snippet(addressText)
+        )
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(KEY_INSTANCE_SAVED,true)
+        mapsViewModel.setMapInstance(map)
+        mapsViewModel.setMapMarkers(markerHistory)
     }
 }

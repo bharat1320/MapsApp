@@ -15,6 +15,8 @@ class LoginFragment : Fragment() {
 
     var savedEmail : String? = null
     var savedPassword : String? = null
+    var latestEmail : String = ""
+    var latestPassword : String = ""
 
     companion object {
         val KEY_EMAIL = "email"
@@ -66,38 +68,38 @@ class LoginFragment : Fragment() {
 
     private fun listeners() {
         binding.loginEmail.doAfterTextChanged {
-            binding.loginEmailLayout.isErrorEnabled = true
+            latestEmail = it.toString()
             checkValidation()
         }
 
         binding.loginPassword.doAfterTextChanged {
-            binding.loginPasswordLayout.isErrorEnabled = true
+            latestPassword = it.toString()
             checkValidation()
         }
 
         binding.loginButton.setOnClickListener {
-            findNavController().navigate(R.id.action_loginFragment_to_mapFragment)
+            val bundle = Bundle()
+            bundle.putString(KEY_EMAIL, binding.loginEmail.text.toString())
+            findNavController().navigate(R.id.action_loginFragment_to_mapFragment,bundle)
         }
     }
 
     private fun checkValidation() {
         var matched = 0
-        val email = binding.loginEmail.text.toString()
-        val password = binding.loginPassword.text.toString()
 
-        if(regexEmail.matches(email)) {
+        if(regexEmail.matches(latestEmail)) {
             matched++
             binding.loginEmailLayout.isErrorEnabled = false
         } else {
-            if(email.isNotBlank()) {
+            if(latestEmail.isNotBlank()) {
                 binding.loginEmailLayout.error = "Email is not valid"
             }
         }
-        if(regexPassword.matches(password)) {
+        if(regexPassword.matches(latestPassword)) {
             matched++
             binding.loginPasswordLayout.isErrorEnabled = false
         } else {
-            if(password.isNotBlank()) {
+            if(latestPassword.isNotBlank()) {
                 binding.loginPasswordLayout.error =
                     "Password should contain one lowercase, one uppercase, numbers and letters"
             }
@@ -106,8 +108,8 @@ class LoginFragment : Fragment() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        outState.putString(KEY_EMAIL, binding.loginEmail.text.toString())
-        outState.putString(KEY_PASSWORD, binding.loginPassword.text.toString())
+        outState.putString(KEY_EMAIL, latestEmail)
+        outState.putString(KEY_PASSWORD, latestPassword)
         super.onSaveInstanceState(outState)
     }
 }
