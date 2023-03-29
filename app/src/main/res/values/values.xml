@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <dimen name="margin_5sdp">@dimen/_5sdp</dimen>
+    <dimen name="margin_10sdp">@dimen/_10sdp</dimen>
     <dimen name="border_margin">@dimen/_16sdp</dimen>
-    <dimen name="top_margin_medium">@dimen/_16sdp</dimen>
-    <dimen name="top_margin_large">@dimen/_24sdp</dimen>
+    <dimen name="margin_large">@dimen/_24sdp</dimen>
+    <dimen name="margin_semi_large">@dimen/_40sdp</dimen>
+    <dimen name="margin_very_very_large">@dimen/_50sdp</dimen>
 
     <dimen name="icon_size">@dimen/_40sdp</dimen>
     <dimen name="icon_padding">@dimen/_8sdp</dimen>

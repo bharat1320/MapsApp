@@ -22,7 +22,7 @@
             android:id="@+id/login_email_layout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/top_margin_large"
+            android:layout_marginTop="@dimen/margin_large"
             android:hint="@string/email">
 
             <com.google.android.material.textfield.TextInputEditText
@@ -37,7 +37,7 @@
             android:id="@+id/login_password_layout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/top_margin_medium"
+            android:layout_marginTop="@dimen/border_margin"
             android:hint="@string/password">
 
             <com.google.android.material.textfield.TextInputEditText
@@ -54,7 +54,7 @@
             android:text="@string/text1"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/top_margin_large"/>
+            android:layout_marginTop="@dimen/margin_large"/>
 
     </LinearLayout>
 </ScrollView>

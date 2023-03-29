@@ -2,18 +2,18 @@
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/loginFragment">
+    app:startDestination="@id/mapFragment">
 
     <fragment
         android:id="@+id/loginFragment"
         android:name="com.project.mapsapp.ui.login.LoginFragment"
         android:label="LoginFragment" >
         <action
-            android:id="@+id/action_loginFragment_to_homeFragment"
-            app:destination="@id/homeFragment" />
+            android:id="@+id/action_loginFragment_to_mapFragment"
+            app:destination="@id/mapFragment" />
     </fragment>
     <fragment
-        android:id="@+id/homeFragment"
-        android:name="com.project.mapsapp.ui.home.HomeFragment"
-        android:label="HomeFragment" />
+        android:id="@+id/mapFragment"
+        android:name="com.project.mapsapp.ui.map.MapFragment"
+        android:label="MapFragment" />
 </navigation>

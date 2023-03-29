@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <fragment
+        android:id="@+id/map_fragment"
+        android:name="com.google.android.gms.maps.SupportMapFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <EditText
+        android:id="@+id/map_search"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/icon_size"
+        android:layout_marginStart="@dimen/margin_semi_large"
+        android:layout_marginTop="@dimen/margin_5sdp"
+        android:layout_marginEnd="@dimen/_5sdp"
+        android:background="@drawable/background_curved"
+        android:elevation="2dp"
+        android:gravity="start|center"
+        android:hint="@string/search_location"
+        android:inputType="text"
+        android:maxLines="1"
+        android:paddingHorizontal="@dimen/margin_10sdp"
+        android:singleLine="true"
+        android:textColor="@android:color/black"
+        android:textColorHint="@android:color/darker_gray"
+        android:textSize="@dimen/text_16sp"
+        app:layout_constraintEnd_toStartOf="@+id/map_search_button"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/map_search_button"
+        android:layout_width="@dimen/icon_size"
+        android:layout_height="@dimen/icon_size"
+        android:layout_margin="@dimen/margin_5sdp"
+        android:background="@drawable/background_circle_white"
+        android:elevation="@dimen/icon_elevation"
+        android:padding="@dimen/icon_padding"
+        android:src="@drawable/ic_search_black"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+<!--    <AutoCompleteTextView-->
+<!--        android:id="@+id/map_search"-->
+<!--        android:layout_width="0dp"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:hint="@string/search_location"-->
+<!--        android:inputType="text"-->
+<!--        android:maxLines="1"-->
+<!--        android:singleLine="true"-->
+<!--        android:textColor="@android:color/black"-->
+<!--        android:textColorHint="@android:color/darker_gray"-->
+<!--        android:textSize="@dimen/text_16sp"-->
+<!--        android:completionThreshold="0"-->
+<!--        android:elevation="2dp"-->
+<!--        android:paddingVertical="@dimen/margin_5sdp"-->
+<!--        android:paddingHorizontal="@dimen/margin_10sdp"-->
+<!--        android:background="@drawable/background_curved"-->
+<!--        android:layout_marginEnd="@dimen/border_margin"-->
+<!--        android:layout_marginStart="@dimen/margin_semi_large"-->
+<!--        android:layout_marginTop="@dimen/margin_5sdp"-->
+<!--        app:layout_constraintEnd_toEndOf="parent"-->
+<!--        app:layout_constraintStart_toStartOf="parent"-->
+<!--        app:layout_constraintTop_toTopOf="parent" />-->
+
+    <ImageView
+        android:id="@+id/map_clear_marker"
+        android:layout_width="@dimen/icon_size"
+        android:layout_height="@dimen/icon_size"
+        android:padding="@dimen/icon_padding"
+        android:src="@drawable/ic_clear_marker_black"
+        android:elevation="@dimen/icon_elevation"
+        android:background="@drawable/background_circle_white"
+        android:layout_margin="@dimen/border_margin"
+        app:layout_constraintBottom_toTopOf="@id/map_locate_button"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <ImageView
+        android:id="@+id/map_locate_button"
+        android:layout_width="@dimen/icon_size"
+        android:layout_height="@dimen/icon_size"
+        android:padding="@dimen/icon_padding"
+        android:src="@drawable/ic_my_location_black"
+        android:elevation="@dimen/icon_elevation"
+        android:background="@drawable/background_circle_white"
+        android:layout_marginEnd="@dimen/border_margin"
+        android:layout_marginBottom="@dimen/margin_very_very_large"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
