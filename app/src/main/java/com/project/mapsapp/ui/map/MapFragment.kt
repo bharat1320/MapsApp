@@ -103,6 +103,38 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         registerNetworkListener()
     }
 
+    override fun onViewStateRestored(savedInstanceState: Bundle?) {
+        super.onViewStateRestored(savedInstanceState)
+        if(savedInstanceState != null) {
+
+            if(savedInstanceState.getBoolean(KEY_INSTANCE_SAVED)) {
+                map = mapsViewModel.getMapInstance()!!
+
+                binding.mapTitle.text = savedInstanceState.getString(KEY_EMAIL)
+
+                listeners()
+            }
+        }
+    }
+
+    override fun onMapReady(googleMap: GoogleMap) {
+        map = googleMap
+
+//       Default location India
+        map.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(20.5937,78.9629), 4.0f))
+
+        listeners()
+    }
+
+    private fun setUp() {
+        val apiKey = getString(R.string.maps_api_key)
+        Places.initialize(requireContext(), apiKey)
+        placesClient = Places.createClient(requireContext())
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireContext())
+
+        binding.mapTitle.text = arguments?.getString(LoginFragment.KEY_EMAIL,"")
+    }
+
     private fun registerNetworkListener() {
         if(!isNetworkConnected(requireContext())) {
             binding.mapNoInternetButton.visibility = View.VISIBLE
@@ -130,35 +162,6 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                 showConnectedToast = true
             }
         )
-    }
-
-    override fun onViewStateRestored(savedInstanceState: Bundle?) {
-        super.onViewStateRestored(savedInstanceState)
-
-        if(savedInstanceState != null) {
-            if(savedInstanceState.getBoolean(KEY_INSTANCE_SAVED)) {
-                map = mapsViewModel.getMapInstance()!!
-
-                binding.mapTitle.text = savedInstanceState.getString(KEY_EMAIL)
-
-                listeners()
-            }
-        }
-    }
-
-    override fun onMapReady(googleMap: GoogleMap) {
-        map = googleMap
-
-        listeners()
-    }
-
-    private fun setUp() {
-        val apiKey = getString(R.string.maps_api_key)
-        Places.initialize(requireContext(), apiKey)
-        placesClient = Places.createClient(requireContext())
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireContext())
-
-        binding.mapTitle.text = arguments?.getString(LoginFragment.KEY_EMAIL,"")
     }
 
     private fun listeners() {
@@ -200,9 +203,11 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             val addresses =
                 geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1) ?: arrayListOf()
             val addressText = addresses[0]?.getAddressLine(0) ?: ""
+            binding.mapCenterText.visibility = View.VISIBLE
             binding.mapCenterText.text = addressText
         } catch (e :Exception) {
             Log.e(TAG,"get address Error : $e")
+            binding.mapCenterText.visibility = View.GONE
         }
     }
 
