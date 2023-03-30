@@ -60,40 +60,34 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@+id/map_search" />
 
-<!--    <AutoCompleteTextView-->
-<!--        android:id="@+id/map_search"-->
-<!--        android:layout_width="0dp"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:hint="@string/search_location"-->
-<!--        android:inputType="text"-->
-<!--        android:maxLines="1"-->
-<!--        android:singleLine="true"-->
-<!--        android:textColor="@android:color/black"-->
-<!--        android:textColorHint="@android:color/darker_gray"-->
-<!--        android:textSize="@dimen/text_16sp"-->
-<!--        android:completionThreshold="0"-->
-<!--        android:elevation="2dp"-->
-<!--        android:paddingVertical="@dimen/margin_5sdp"-->
-<!--        android:paddingHorizontal="@dimen/margin_10sdp"-->
-<!--        android:background="@drawable/background_curved"-->
-<!--        android:layout_marginEnd="@dimen/border_margin"-->
-<!--        android:layout_marginStart="@dimen/margin_semi_large"-->
-<!--        android:layout_marginTop="@dimen/margin_5sdp"-->
-<!--        app:layout_constraintEnd_toEndOf="parent"-->
-<!--        app:layout_constraintStart_toStartOf="parent"-->
-<!--        app:layout_constraintTop_toTopOf="parent" />-->
+    <TextView
+        android:id="@+id/map_center_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:maxLines="2"
+        android:text="@string/password"
+        android:padding="@dimen/_5sdp"
+        android:textColor="@color/black"
+        android:gravity="center"
+        android:backgroundTint="@color/light_background"
+        android:background="@drawable/background_curved"
+        android:layout_marginHorizontal="@dimen/border_margin"
+        app:layout_constraintBottom_toTopOf="@id/map_center_marker"
+        app:layout_constraintEnd_toEndOf="@+id/map_center_marker"
+        app:layout_constraintStart_toStartOf="@+id/map_center_marker" />
 
     <ImageView
-        android:id="@+id/map_clear_marker"
+        android:id="@+id/map_center_marker"
         android:layout_width="@dimen/icon_size"
         android:layout_height="@dimen/icon_size"
-        android:padding="@dimen/icon_padding"
-        android:src="@drawable/ic_clear_marker_black"
-        android:elevation="@dimen/icon_elevation"
-        android:background="@drawable/background_circle_white"
         android:layout_margin="@dimen/border_margin"
-        app:layout_constraintBottom_toTopOf="@id/map_locate_button"
-        app:layout_constraintEnd_toEndOf="parent" />
+        android:elevation="@dimen/icon_elevation"
+        android:padding="@dimen/icon_padding"
+        android:src="@drawable/ic_pin"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <ImageView
         android:id="@+id/map_locate_button"

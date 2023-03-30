@@ -14,13 +14,4 @@ class MapsViewModel: ViewModel() {
         mapInstance = map
     }
 
-    private var mapMarkers : ArrayList<LatLng> = arrayListOf()
-
-    fun getMapMarkers() = mapMarkers
-
-    fun saveMapMarkers(markers :ArrayList<LatLng>) {
-        mapMarkers.clear()
-        mapMarkers.addAll(markers)
-    }
-
 }

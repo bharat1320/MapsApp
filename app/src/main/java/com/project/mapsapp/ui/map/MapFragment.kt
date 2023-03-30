@@ -23,7 +23,6 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -34,7 +33,6 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.net.PlacesClient
 import com.project.mapsapp.R
@@ -45,25 +43,23 @@ import com.project.mapsapp.ui.util.NetworkCallBackImpl
 import com.project.mapsapp.ui.util.customExtensionDialog
 import java.io.IOException
 import java.util.*
-import kotlin.collections.ArrayList
 
 class MapFragment : Fragment(), OnMapReadyCallback {
     private lateinit var binding: FragmentMapBinding
     val mapsViewModel: MapsViewModel by viewModels()
+    private var TAG = "MapFragment"
+
     private lateinit var connectivityManager: ConnectivityManager
     private lateinit var networkCallback: NetworkCallBackImpl
     private lateinit var map: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var placesClient: PlacesClient
     private lateinit var dialog: AlertDialog.Builder
-    private var TAG = "MapFragment"
+    private var showConnectedToast = false
 
 //    To tackle multiple clicks
     var searchThreadAvailability = false
-    private val timeDelay = 2 // in seconds
-
-//    All the even positions have latitude and odd positions have longitude
-    private var markerHistory: ArrayList<LatLng> = arrayListOf()
+    private val timeDelay = 2
 
     companion object {
         val KEY_INSTANCE_SAVED = "KEY_INSTANCE_SAVED"
@@ -110,6 +106,7 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     private fun registerNetworkListener() {
         if(!isNetworkConnected(requireContext())) {
             binding.mapNoInternetButton.visibility = View.VISIBLE
+            showConnectedToast = true
             offlineAlert()
         } else {
             binding.mapNoInternetButton.visibility = View.GONE
@@ -118,12 +115,19 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         connectivityManager = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         networkCallback = NetworkCallBackImpl(
             {
-                Toast.makeText(requireContext(), resources.getString(R.string.connected_dialog), Toast.LENGTH_LONG).show()
+                if(showConnectedToast) {
+                    Toast.makeText(
+                        requireContext(),
+                        resources.getString(R.string.connected_dialog),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
                 binding.mapNoInternetButton.visibility = View.GONE
             },
             {
                 offlineAlert()
                 binding.mapNoInternetButton.visibility = View.VISIBLE
+                showConnectedToast = true
             }
         )
     }
@@ -138,11 +142,6 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                 binding.mapTitle.text = savedInstanceState.getString(KEY_EMAIL)
 
                 listeners()
-
-                markerHistory.addAll(mapsViewModel.getMapMarkers())
-                markerHistory.forEach {
-                    addMarkerWithoutHistory(it)
-                }
             }
         }
     }
@@ -165,7 +164,11 @@ class MapFragment : Fragment(), OnMapReadyCallback {
     private fun listeners() {
 
         map.setOnMapClickListener { point ->
-            addMarker(point)
+            map.animateCamera(CameraUpdateFactory.newLatLngZoom(point, 15f))
+        }
+
+        map.setOnCameraIdleListener {
+            setAddressAtCenterOfMap()
         }
 
         binding.mapSearchButton.setOnClickListener {
@@ -173,10 +176,6 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             if(!location.isBlank()) {
                 searchLocationByName(location)
             }
-        }
-
-        binding.mapClearMarker.setOnClickListener {
-            map.clear()
         }
 
         binding.mapLocateButton.setOnClickListener {
@@ -192,6 +191,19 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             offlineAlert()
         }
 
+    }
+
+    private fun setAddressAtCenterOfMap() {
+        val latLng: LatLng = map.cameraPosition.target
+        try {
+            val geocoder = Geocoder(requireContext(), Locale.getDefault())
+            val addresses =
+                geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1) ?: arrayListOf()
+            val addressText = addresses[0]?.getAddressLine(0) ?: ""
+            binding.mapCenterText.text = addressText
+        } catch (e :Exception) {
+            Log.e(TAG,"get address Error : $e")
+        }
     }
 
     fun isNetworkConnected(context: Context): Boolean {
@@ -211,11 +223,9 @@ class MapFragment : Fragment(), OnMapReadyCallback {
                     if (location != null) {
                         val latLng = LatLng(location.latitude, location.longitude)
                         map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
-                        addMarker(latLng)
                     } else {
                         gpsOffAlert()
                     }
-                    map.isMyLocationEnabled = true
                 }
                 .addOnFailureListener {
                     Toast.makeText(requireContext(), resources.getString(R.string.failed_location) + it, Toast.LENGTH_SHORT).show()
@@ -236,7 +246,6 @@ class MapFragment : Fragment(), OnMapReadyCallback {
         if (addressList != null && addressList.isNotEmpty()) {
             val address = addressList[0]
             val latLng = LatLng(address.latitude, address.longitude)
-            addMarker(latLng)
             map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
         } else {
             Toast.makeText(requireContext(), resources.getString(R.string.failed_location_search), Toast.LENGTH_SHORT)
@@ -279,34 +288,11 @@ class MapFragment : Fragment(), OnMapReadyCallback {
             })
     }
 
-    private fun addMarker(latLng: LatLng) {
-        markerHistory.add(latLng)
-        addMarkerWithoutHistory(latLng)
-    }
-
-    private fun addMarkerWithoutHistory(latLng: LatLng) {
-        try {
-            val geocoder = Geocoder(requireContext(), Locale.getDefault())
-            val addresses =
-                geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1) ?: arrayListOf()
-            val addressText = addresses[0]?.getAddressLine(0) ?: ""
-            map.addMarker(
-                MarkerOptions()
-                    .position(latLng)
-                    .title("lat:${latLng.latitude}, long:${latLng.longitude}")
-                    .snippet(addressText)
-            )
-        } catch (e :Exception) {
-            Log.e("${TAG}/Marker_Exception", e.toString())
-        }
-    }
-
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(KEY_INSTANCE_SAVED,true)
         outState.putString(KEY_EMAIL,binding.mapTitle.text.toString())
         mapsViewModel.saveMapInstance(map)
-        mapsViewModel.saveMapMarkers(markerHistory)
     }
 
     override fun onStart() {
