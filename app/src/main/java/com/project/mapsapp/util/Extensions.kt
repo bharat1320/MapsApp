@@ -1,4 +1,4 @@
-package com.project.mapsapp.ui.util
+package com.project.mapsapp.util
 
 import android.app.AlertDialog
 

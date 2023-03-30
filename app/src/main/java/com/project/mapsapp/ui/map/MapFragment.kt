@@ -39,8 +39,8 @@ import com.project.mapsapp.R
 import com.project.mapsapp.databinding.FragmentMapBinding
 import com.project.mapsapp.ui.login.LoginFragment
 import com.project.mapsapp.ui.map.viewModel.MapsViewModel
-import com.project.mapsapp.ui.util.NetworkCallBackImpl
-import com.project.mapsapp.ui.util.customExtensionDialog
+import com.project.mapsapp.util.NetworkCallBackImpl
+import com.project.mapsapp.util.customExtensionDialog
 import java.io.IOException
 import java.util.*
 
